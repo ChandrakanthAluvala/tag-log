@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#C2410C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tag Log">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Bundle Tag Log</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column built for a phone held in one hand. Capture buttons on top, one card per bundle tag in photo order, a fixed bar at the bottom with the Excel download. */
+:root{
+  color-scheme:light;
+  --bg:#EDEFF0; --surface:#FFFFFF; --field:#F4F6F7; --ink:#1A2025; --muted:#5A6670; --line:#C9D0D5;
+  --accent:#C2410C; --accent-ink:#FFFFFF; --warn-bg:#FFF0CF; --warn-line:#D49A00; --err:#A8201A; --ok:#25703A;
+  --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --body:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#11161A; --surface:#1B2227; --field:#141A1E; --ink:#E7ECEF; --muted:#93A0AA; --line:#324048;
+    --accent:#FF8A4C; --accent-ink:#17110D; --warn-bg:#3A2F10; --warn-line:#C99A1C; --err:#FF8F86; --ok:#6FCB88;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
+  padding-inline:16px;padding-block:calc(20px + env(safe-area-inset-top,0px)) 130px}
+main{max-width:640px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:6px 0 8px;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:46ch}
+.capture{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:480px){.capture{grid-template-columns:1.4fr 1fr}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 18px;border-radius:6px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:600 17px/1 var(--body);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{min-height:64px;font-size:19px}
+.btn.small{min-height:44px;font-size:15px;padding:0 14px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.linkbtn:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sr:focus-visible + .btn,.sr:focus + .btn{outline:3px solid var(--accent);outline-offset:2px}
+.linkbtn{background:none;border:0;padding:8px 2px;font:500 15px var(--body);color:var(--muted);text-decoration:underline;cursor:pointer}
+.notice{margin:0;padding:10px 12px;border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:6px;font-size:15px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel h2{font-family:var(--display);font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0;font-weight:600}
+.panel ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.panel p{margin:0}
+.panel a{color:var(--accent)}
+.row2{display:flex;gap:8px;align-items:stretch}
+.row2 input{flex:1}
+.hint{font-size:14px;color:var(--muted)}
+.listhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.listhead h2{font-family:var(--display);font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0;font-weight:600}
+.lh-actions{display:flex;gap:14px;flex-wrap:wrap}
+#list{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.entry.example{border-style:dashed;background:transparent}
+.ehead{display:flex;align-items:center;gap:12px;min-width:0}
+.thumb{width:56px;height:56px;border-radius:4px;object-fit:cover;background:var(--field);border:1px solid var(--line);flex:none;display:grid;place-items:center;font:500 11px var(--mono);color:var(--muted);letter-spacing:.08em}
+.meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.n{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.05em;text-transform:uppercase}
+.status{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.status.err{color:var(--err)}
+.status.ok{color:var(--ok)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;vertical-align:-1px;margin-right:6px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none;border-top-color:var(--line);border-right-color:var(--accent)}}
+.acts{display:flex;flex-direction:column;align-items:flex-end}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field .lab{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;padding:0 10px;border:1.5px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:500 16px var(--mono)}
+.field.unsure input{background:var(--warn-bg);border-color:var(--warn-line)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.barin{max-width:640px;margin-inline:auto;display:flex;align-items:center;gap:10px}
+.tally{flex:1;min-width:0;display:flex;flex-direction:column}
+.tally b{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.tally small{color:var(--muted);font-size:13px;font-family:var(--mono)}
+.barin .btn{flex:none}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom,0px));max-width:608px;margin-inline:auto;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:6px;font-size:15px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <div class="eyebrow">IS 1786 · TMT bars</div>
+      <h1>Bundle Tag Log</h1>
+      <p class="lede">Each photo of a tag adds the next line. Your list is saved on this phone, so you can close the app and keep adding later.</p>
+    </div>
+    <button id="openSettings" class="linkbtn" type="button">Settings</button>
+  </header>
+
+  <section id="settings" class="panel" aria-label="Settings" hidden>
+    <h2>Settings</h2>
+    <div id="setupHelp">
+      <p><b>One-time setup.</b> Reading tags uses a free Google key.</p>
+      <ol>
+        <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> and sign in with a Google account.</li>
+        <li>Tap <b>Create API key</b> and copy it.</li>
+        <li>Paste it below and tap <b>Save</b>.</li>
+      </ol>
+    </div>
+    <label class="field"><span class="lab">Google API key</span>
+      <span class="row2"><input id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste key here"><button id="showKey" class="btn small" type="button">Show</button></span>
+    </label>
+    <label class="field"><span class="lab">Model</span><input id="model" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <p class="hint">Photos are sent to Google to be read. The key stays on this phone.</p>
+    <div class="row2">
+      <button id="saveSettings" class="btn primary small" type="button">Save</button>
+      <button id="testKey" class="btn small" type="button">Test key</button>
+      <button id="closeSettings" class="btn small" type="button">Close</button>
+    </div>
+    <p id="settingsMsg" class="hint" role="status"></p>
+    <p class="hint"><b>Install on your phone.</b> Android (Chrome): menu, then Install app. iPhone (Safari): Share, then Add to Home Screen.</p>
+    <button id="install" class="btn small" type="button" hidden>Install app</button>
+  </section>
+
+  <section class="capture" aria-label="Add tags">
+    <input id="cam" class="sr" type="file" accept="image/*" capture="environment">
+    <label class="btn primary big" for="cam">Take photo of tag</label>
+    <input id="gal" class="sr" type="file" accept="image/*" multiple>
+    <label class="btn big" for="gal">Choose photos</label>
+  </section>
+
+  <p id="notice" class="notice" hidden></p>
+
+  <section aria-label="Lines">
+    <div class="listhead">
+      <h2>Lines</h2>
+      <span class="lh-actions">
+        <button id="retryAll" class="linkbtn" type="button" hidden>Retry failed</button>
+        <button id="manual" class="linkbtn" type="button">Add line by hand</button>
+        <button id="clear" class="linkbtn" type="button" hidden>Clear list</button>
+      </span>
+    </div>
+    <div id="confirm" class="notice" hidden style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px">
+      <span id="confirmTxt"></span>
+      <button id="confirmYes" class="linkbtn" type="button" style="color:var(--err)">Yes, clear</button>
+      <button id="confirmNo" class="linkbtn" type="button">Cancel</button>
+    </div>
+    <div id="list"></div>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="barin">
+    <div class="tally"><b id="count">No lines yet</b><small id="total"></small></div>
+    <button id="share" class="btn" type="button" hidden>Share</button>
+    <button id="dl" class="btn primary" type="button" disabled>Download Excel</button>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="xlsx-lite.js"></script>
+<script>
+(function(){
+  'use strict';
+  var ROWS_KEY='bundle-tag-log-rows-v1', SET_KEY='bundle-tag-log-settings-v1';
+  var MODELS=['gemini-flash-latest','gemini-2.5-flash','gemini-2.0-flash'];
+  var API='https://generativelanguage.googleapis.com/v1beta/';
+  var FIELDS=[['heat','Heat number'],['grade','Grade'],['size','Size X length'],['weight','Net weight (kg)']];
+  var MAP={heat_number:'heat',grade:'grade',size_length:'size',weight_kg:'weight'};
+
+  function read(k,d){try{var s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}}
+  var settings=read(SET_KEY,{key:'',model:MODELS[0]});
+  if(!settings.model)settings.model=MODELS[0];
+  var rows=read(ROWS_KEY,[]);
+  if(!Array.isArray(rows))rows=[];
+  rows.forEach(function(r,i){
+    if(!r.seq)r.seq=i+1;
+    if(r.status==='reading'){r.status='err';r.msg=r.img?'Reading was interrupted. Tap Retry.':'Reading was interrupted. Take the photo again.'}
+  });
+
+  var $=function(id){return document.getElementById(id)};
+  var list=$('list'), notice=$('notice');
+  function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+  function pad(n){return (n<10?'0':'')+n}
+  function num(v){var n=parseFloat(String(v==null?'':v).replace(/[^\d.]/g,''));return isFinite(n)?n:null}
+  function toast(t){var e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){e.hidden=true},3500)}
+  function say(t){if(!t){notice.hidden=true;return}notice.textContent=t;notice.hidden=false}
+  function nextSeq(){var m=0;rows.forEach(function(r){if((r.seq||0)>m)m=r.seq});return m+1}
+  function newId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+
+  /* ---------- saving on this phone ---------- */
+  function saveRows(){
+    try{localStorage.setItem(ROWS_KEY,JSON.stringify(rows))}
+    catch(e){
+      try{localStorage.setItem(ROWS_KEY,JSON.stringify(rows.map(function(r){var c={};for(var k in r)c[k]=r[k];c.thumb='';return c})))}
+      catch(e2){say('This phone has no room left to save the list. Download your Excel file now.')}
+    }
+  }
+  function saveSettings(){try{localStorage.setItem(SET_KEY,JSON.stringify(settings))}catch(e){}}
+  function idb(){return new Promise(function(res,rej){
+    if(!window.indexedDB){rej(new Error('no idb'));return}
+    var r=indexedDB.open('tag-log',1);
+    r.onupgradeneeded=function(){r.result.createObjectStore('imgs')};
+    r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)};
+  })}
+  function idbOp(mode,fn){return idb().then(function(db){return new Promise(function(res,rej){
+    var t=db.transaction('imgs',mode),out;
+    out=fn(t.objectStore('imgs'));
+    t.oncomplete=function(){res(out&&out.result)};t.onerror=function(){rej(t.error)};
+  })})}
+  function idbPut(k,v){return idbOp('readwrite',function(s){return s.put(v,k)})}
+  function idbGet(k){return idbOp('readonly',function(s){return s.get(k)})}
+  function idbDel(k){return idbOp('readwrite',function(s){return s.delete(k)})}
+
+  /* ---------- cards ---------- */
+  function card(e,i){
+    var a=el('article','entry');a.dataset.id=e.id;
+    var h=el('div','ehead');
+    var th;
+    if(e.thumb){th=document.createElement('img');th.className='thumb';th.alt='Photo of tag for line '+(i+1);th.src=e.thumb}else{th=el('div','thumb','TAG')}
+    var m=el('div','meta');m.append(el('span','n','Line '+pad(i+1)));
+    var st=el('span','status');
+    if(e.status==='reading'){st.append(el('span','spin'),document.createTextNode('Reading tag…'))}
+    else if(e.status==='err'){st.classList.add('err');st.textContent=e.msg||'Could not read this tag.'}
+    else if(e.unsure&&e.unsure.length){st.textContent='Check the yellow fields against the tag.'}
+    else if(e.status==='ok'){st.classList.add('ok');st.textContent='Read from photo'}
+    else{st.textContent='Entered by hand'}
+    m.append(st);
+    h.append(th,m);
+    var btns=el('div','acts');
+    if(e.status==='err'&&e.img){var r=el('button','linkbtn','Retry');r.type='button';r.onclick=function(){enqueue(e)};btns.append(r)}
+    var x=el('button','linkbtn','Remove');x.type='button';x.onclick=function(){remove(e.id)};btns.append(x);
+    h.append(btns);
+    var f=el('div','fields');
+    FIELDS.forEach(function(p){
+      var k=p[0];var lab=el('label','field');
+      if(e.unsure&&e.unsure.indexOf(k)>-1)lab.classList.add('unsure');
+      lab.append(el('span','lab',p[1]));
+      var inp=document.createElement('input');inp.type='text';inp.value=e[k]==null?'':e[k];
+      inp.autocomplete='off';inp.autocapitalize=k==='weight'?'off':'characters';
+      if(k==='weight')inp.inputMode='decimal';
+      inp.disabled=e.status==='reading';
+      inp.oninput=function(){
+        e[k]=inp.value;
+        if(e.unsure){var j=e.unsure.indexOf(k);if(j>-1){e.unsure.splice(j,1);lab.classList.remove('unsure')}}
+        saveRows();bar();
+      };
+      lab.append(inp);f.append(lab);
+    });
+    a.append(h,f);return a;
+  }
+  function example(){
+    var a=el('article','entry example');
+    var h=el('div','ehead');h.append(el('div','thumb','TAG'));
+    var m=el('div','meta');m.append(el('span','n','Example'),el('span','status','Sample values. Not added to your Excel file.'));
+    h.append(m);
+    var f=el('div','fields');
+    [['Heat number','A11702'],['Grade','Fe 550 D'],['Size X length','32 mm X 12 mtr'],['Net weight (kg)','2206']].forEach(function(p){
+      var l=el('div','field');l.append(el('span','lab',p[0]));
+      var i=document.createElement('input');i.type='text';i.value=p[1];i.readOnly=true;i.tabIndex=-1;i.setAttribute('aria-label',p[0]+' example');l.append(i);f.append(l)});
+    a.append(h,f);return a;
+  }
+  function render(){
+    list.textContent='';
+    if(!rows.length)list.append(example());
+    rows.forEach(function(e,i){list.append(card(e,i))});
+    $('clear').hidden=!rows.length;
+    $('retryAll').hidden=rows.filter(function(r){return r.status==='err'&&r.img}).length<2;
+    bar();
+  }
+  function refresh(e){
+    var i=rows.indexOf(e);var old=list.querySelector('[data-id="'+e.id+'"]');
+    if(old&&i>-1){old.replaceWith(card(e,i))}else render();
+    $('retryAll').hidden=rows.filter(function(r){return r.status==='err'&&r.img}).length<2;
+    bar();
+  }
+  function bar(){
+    var n=rows.length,t=0,any=false;
+    rows.forEach(function(e){var w=num(e.weight);if(w!=null){t+=w;any=true}});
+    $('count').textContent=n?(n+(n===1?' line':' lines')):'No lines yet';
+    $('total').textContent=any?('Total '+t.toLocaleString('en-IN',{maximumFractionDigits:1})+' kg'):'';
+    $('dl').disabled=!n;$('share').disabled=!n;
+  }
+  function remove(id){
+    rows=rows.filter(function(e){return e.id!==id});
+    idbDel(id).catch(function(){});saveRows();render();
+  }
+
+  /* ---------- preparing the photo ---------- */
+  function bitmapOf(file){
+    if(window.createImageBitmap){
+      return createImageBitmap(file,{imageOrientation:'from-image'}).catch(function(){return createImageBitmap(file)});
+    }
+    return new Promise(function(res,rej){
+      var u=URL.createObjectURL(file),im=new Image();
+      im.onload=function(){URL.revokeObjectURL(u);res(im)};im.onerror=rej;im.src=u;
+    });
+  }
+  function toBlob(c,q){return new Promise(function(res){c.toBlob(res,'image/jpeg',q)})}
+  function prep(file){
+    return bitmapOf(file).then(function(bm){
+      var w=bm.width||bm.naturalWidth,h=bm.height||bm.naturalHeight;
+      var s=Math.min(1,1600/Math.max(w,h));
+      var c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));
+      c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+      var s2=72/Math.max(w,h);var t=document.createElement('canvas');t.width=Math.max(1,Math.round(w*s2));t.height=Math.max(1,Math.round(h*s2));
+      t.getContext('2d').drawImage(bm,0,0,t.width,t.height);
+      return toBlob(c,0.85).then(function(b){return {blob:b,thumb:t.toDataURL('image/jpeg',0.5)}});
+    });
+  }
+  function b64(blob){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(',')[1])};r.onerror=rej;r.readAsDataURL(blob)})}
+
+  /* ---------- reading the tag with Google Gemini ---------- */
+  var PROMPT='This photo shows the paper tag tied to a bundle of TMT steel rebar from an Indian steel mill. Read these four printed fields exactly as they appear on the tag.\n'
+   +'- heat_number: the value under "Heat Number" (letters and digits such as A11702). Ignore any other number printed beside it.\n'
+   +'- grade: the value under "Grade", for example Fe 550 D.\n'
+   +'- size_length: the value under "Size X Length", written as "<size> mm X <length> mtr", for example "32 mm X 12 mtr".\n'
+   +'- weight_kg: the number under "Bundle Net Weight (Approx)", digits only, in kilograms.\n'
+   +'The printing of size and weight can be faint or blurred, so read the digits carefully. If a field is missing, use an empty string, or null for weight_kg. '
+   +'If you had to guess any field because it is faint, cut off or unclear, list its key in "unsure".\n'
+   +'Reply with only one JSON object, for example: {"heat_number":"A11702","grade":"Fe 550 D","size_length":"32 mm X 12 mtr","weight_kg":2206,"unsure":[]}';
+
+  function parseJson(t){
+    var a=t.indexOf('{'),b=t.lastIndexOf('}');
+    if(a<0||b<a)throw {code:'empty'};
+    try{return JSON.parse(t.slice(a,b+1))}catch(e){throw {code:'empty'}}
+  }
+  function gemini(blob,attempt){
+    return b64(blob).then(function(data){
+      var order=[settings.model].concat(MODELS.filter(function(m){return m!==settings.model}));
+      var body=JSON.stringify({
+        contents:[{parts:[{text:PROMPT},{inline_data:{mime_type:'image/jpeg',data:data}}]}],
+        generationConfig:{responseMimeType:'application/json',temperature:0}
+      });
+      function tryModel(i){
+        if(i>=order.length)throw {code:'http',status:404,message:'No Gemini model was found. Check the model name in Settings.'};
+        return fetch(API+'models/'+encodeURIComponent(order[i])+':generateContent',{
+          method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':settings.key},body:body
+        }).then(function(res){
+          if(res.status===404)return tryModel(i+1);
+          return res.json().catch(function(){return {}}).then(function(j){
+            if(!res.ok)throw {code:'http',status:res.status,message:(j.error&&j.error.message)||('HTTP '+res.status)};
+            if(order[i]!==settings.model){settings.model=order[i];saveSettings()}
+            var parts=(j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[];
+            var text=parts.map(function(p){return p.text||''}).join('');
+            if(!text)throw {code:'empty'};
+            return parseJson(text);
+          });
+        });
+      }
+      return tryModel(0);
+    }).catch(function(err){
+      if(err&&err.status===429&&!attempt){return sleep(20000).then(function(){return gemini(blob,1)})}
+      throw err;
+    });
+  }
+  function errCopy(err){
+    if(!err)return 'Could not read this tag.';
+    if(err.code==='nokey')return 'Add your Google API key in Settings, then tap Retry.';
+    if(err.code==='noimg')return 'The photo is no longer stored. Take it again.';
+    if(err.code==='empty')return 'Could not read this tag. Retake the photo closer and in better light, or type the values.';
+    if(err.code==='http'){
+      var m=String(err.message||'');
+      if(err.status===400&&/api key/i.test(m))return 'Google rejected the API key. Check it in Settings.';
+      if(err.status===401||err.status===403)return 'Google rejected the key or blocked the request. Check the key in Settings.';
+      if(err.status===429)return 'Free limit reached. Wait a minute, then tap Retry.';
+      return 'Google said: '+m.slice(0,140);
+    }
+    if(err instanceof TypeError||!navigator.onLine)return 'No internet connection. Connect, then tap Retry.';
+    return 'Could not read this tag. Tap Retry.';
+  }
+
+  var chain=Promise.resolve();
+  function enqueue(e){chain=chain.then(function(){return readOne(e)}).then(function(){return sleep(1200)}).catch(function(){})}
+  function readOne(e){
+    e.status='reading';e.msg='';refresh(e);saveRows();
+    return Promise.resolve().then(function(){
+      if(!settings.key)throw {code:'nokey'};
+      return idbGet(e.id).catch(function(){return null});
+    }).then(function(blob){
+      if(!blob)throw {code:'noimg'};
+      return gemini(blob);
+    }).then(function(r){
+      r=r||{};
+      e.heat=String(r.heat_number||'').trim();
+      e.grade=String(r.grade||'').trim();
+      e.size=String(r.size_length||'').trim();
+      var w=num(r.weight_kg);e.weight=w==null?'':String(w);
+      var u=[];(Array.isArray(r.unsure)?r.unsure:[]).forEach(function(k){if(MAP[k]&&u.indexOf(MAP[k])<0)u.push(MAP[k])});
+      FIELDS.forEach(function(p){if(!e[p[0]]&&u.indexOf(p[0])<0)u.push(p[0])});
+      e.unsure=u;e.status='ok';e.msg='';e.img=false;
+      idbDel(e.id).catch(function(){});
+    }).catch(function(err){
+      e.status='err';e.msg=errCopy(err);
+      if(err&&err.code==='noimg')e.img=false;
+      if(err&&err.code==='nokey')openSettings();
+    }).then(function(){saveRows();refresh(e)});
+  }
+
+  function addFiles(fl){
+    var arr=Array.prototype.slice.call(fl||[]);if(!arr.length)return;
+    say('');
+    arr.reduce(function(p,f){
+      return p.then(function(){return prep(f)}).then(function(pr){
+        var e={id:newId(),seq:nextSeq(),heat:'',grade:'',size:'',weight:'',unsure:[],status:'reading',thumb:pr.thumb,img:false,msg:''};
+        return idbPut(e.id,pr.blob).then(function(){e.img=true},function(){e.img=false}).then(function(){
+          rows.push(e);saveRows();render();
+          if(e.img){enqueue(e)}else{
+            /* storing the image failed, so read it straight away without a Retry copy */
+            chain=chain.then(function(){return readNow(e,pr.blob)}).catch(function(){});
+          }
+          window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+        });
+      }).catch(function(){say('That photo could not be opened. Try taking it again.')});
+    },Promise.resolve());
+  }
+  function readNow(e,blob){
+    return Promise.resolve().then(function(){
+      if(!settings.key)throw {code:'nokey'};
+      return gemini(blob);
+    }).then(function(r){
+      r=r||{};
+      e.heat=String(r.heat_number||'').trim();e.grade=String(r.grade||'').trim();e.size=String(r.size_length||'').trim();
+      var w=num(r.weight_kg);e.weight=w==null?'':String(w);
+      var u=[];(Array.isArray(r.unsure)?r.unsure:[]).forEach(function(k){if(MAP[k]&&u.indexOf(MAP[k])<0)u.push(MAP[k])});
+      FIELDS.forEach(function(p){if(!e[p[0]]&&u.indexOf(p[0])<0)u.push(p[0])});
+      e.unsure=u;e.status='ok';e.msg='';
+    }).catch(function(err){e.status='err';e.msg=errCopy(err);if(err&&err.code==='nokey')openSettings()})
+    .then(function(){saveRows();refresh(e);return sleep(1200)});
+  }
+
+  $('cam').onchange=function(){addFiles(this.files);this.value=''};
+  $('gal').onchange=function(){addFiles(this.files);this.value=''};
+  $('manual').onclick=function(){
+    var e={id:newId(),seq:nextSeq(),heat:'',grade:'',size:'',weight:'',unsure:[],status:'manual',thumb:'',img:false};
+    rows.push(e);saveRows();render();
+  };
+  $('retryAll').onclick=function(){rows.filter(function(r){return r.status==='err'&&r.img}).forEach(enqueue)};
+  $('clear').onclick=function(){
+    $('confirmTxt').textContent='Clear all '+rows.length+(rows.length===1?' line?':' lines?');
+    $('confirm').hidden=false;
+  };
+  $('confirmNo').onclick=function(){$('confirm').hidden=true};
+  $('confirmYes').onclick=function(){
+    $('confirm').hidden=true;
+    rows.forEach(function(r){idbDel(r.id).catch(function(){})});
+    rows=[];saveRows();render();
+  };
+
+  /* ---------- settings ---------- */
+  function openSettings(){
+    $('key').value=settings.key||'';$('model').value=settings.model||MODELS[0];
+    $('setupHelp').hidden=!!settings.key;
+    $('settings').hidden=false;
+    $('settings').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  $('openSettings').onclick=function(){$('settings').hidden?openSettings():($('settings').hidden=true)};
+  $('closeSettings').onclick=function(){$('settings').hidden=true};
+  $('showKey').onclick=function(){var k=$('key');var show=k.type==='password';k.type=show?'text':'password';this.textContent=show?'Hide':'Show'};
+  $('saveSettings').onclick=function(){
+    settings.key=$('key').value.trim();settings.model=$('model').value.trim()||MODELS[0];
+    saveSettings();$('settingsMsg').textContent=settings.key?'Saved on this phone.':'Key removed.';
+    $('setupHelp').hidden=!!settings.key;
+    if(settings.key){
+      var any=false;rows.forEach(function(r){if(r.status==='err'&&r.img){any=true;enqueue(r)}});
+      if(any)$('settingsMsg').textContent='Saved. Retrying the photos that were waiting.';
+    }
+  };
+  $('testKey').onclick=function(){
+    var k=$('key').value.trim(),msg=$('settingsMsg');
+    if(!k){msg.textContent='Paste your key first.';return}
+    msg.textContent='Testing…';
+    fetch(API+'models?pageSize=1',{headers:{'x-goog-api-key':k}}).then(function(res){
+      msg.textContent=res.ok?'The key works. Tap Save.':(res.status===400||res.status===403?'Google rejected this key. Check that you copied all of it.':'Google replied with an error ('+res.status+').');
+    }).catch(function(){msg.textContent='No internet connection.'});
+  };
+  var deferred=null;
+  window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();deferred=ev;$('install').hidden=false});
+  $('install').onclick=function(){if(!deferred)return;deferred.prompt();deferred=null;this.hidden=true};
+
+  /* ---------- Excel ---------- */
+  function sheetRows(){
+    var out=[['Heat Number','Grade','Size X Length','Bundle Net Weight (Kg)']];
+    rows.forEach(function(e){
+      if(e.status==='reading')return;
+      var w=num(e.weight);
+      out.push([String(e.heat||'').trim(),String(e.grade||'').trim(),String(e.size||'').trim(),w==null?'':w]);
+    });
+    return out;
+  }
+  function xlsxFile(){
+    var d=new Date();var name='Bundle_Tags_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.xlsx';
+    var bytes=XlsxLite.build(sheetRows(),[16,12,18,24],'Bundle Tags');
+    var type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    return {name:name,blob:new Blob([bytes],{type:type}),type:type};
+  }
+  $('dl').onclick=function(){
+    var f=xlsxFile();
+    var a=document.createElement('a');a.href=URL.createObjectURL(f.blob);a.download=f.name;
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},4000);
+    toast('Saving '+f.name+'. Look in your Downloads.');
+  };
+  $('share').onclick=function(){
+    var f=xlsxFile();var file=new File([f.blob],f.name,{type:f.type});
+    navigator.share({files:[file],title:f.name}).catch(function(err){if(err&&err.name!=='AbortError')toast('Sharing did not work. Use Download Excel.')});
+  };
+  try{
+    var probe=new File([new Blob(['x'])],'a.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    if(navigator.canShare&&navigator.canShare({files:[probe]}))$('share').hidden=false;
+  }catch(e){}
+
+  if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
+  window.addEventListener('online',function(){say('')});
+  render();
+  if(!settings.key)openSettings();
+})();
+</script>
+</body>
+</html>
