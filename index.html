@@ -32,7 +32,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
-  padding-inline:16px;padding-block:calc(20px + env(safe-area-inset-top,0px)) 130px}
+  padding-inline:16px;padding-block:calc(20px + env(safe-area-inset-top,0px)) 160px}
 main{max-width:640px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -81,12 +81,12 @@ h1{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;lette
 input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;padding:0 10px;border:1.5px solid var(--line);border-radius:6px;background:var(--field);color:var(--ink);font:500 16px var(--mono)}
 .field.unsure input{background:var(--warn-bg);border-color:var(--warn-line)}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
-.barin{max-width:640px;margin-inline:auto;display:flex;align-items:center;gap:10px}
-.tally{flex:1;min-width:0;display:flex;flex-direction:column}
-.tally b{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.barin{max-width:640px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.tally{flex:1 1 100%;min-width:0;display:flex;flex-direction:row;align-items:baseline;gap:10px}
+.tally b{font-family:var(--display);font-size:20px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
 .tally small{color:var(--muted);font-size:13px;font-family:var(--mono)}
-.barin .btn{flex:none}
-.toast{position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom,0px));max-width:608px;margin-inline:auto;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:6px;font-size:15px}
+.barin .btn{flex:1 1 0;min-height:48px;padding:0 10px;font-size:16px}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(128px + env(safe-area-inset-bottom,0px));max-width:608px;margin-inline:auto;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:6px;font-size:15px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -156,8 +156,8 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
 <div class="bar">
   <div class="barin">
     <div class="tally"><b id="count">No lines yet</b><small id="total"></small></div>
-    <button id="share" class="btn" type="button" hidden>Share</button>
-    <button id="dl" class="btn primary" type="button" disabled>Download Excel</button>
+    <label class="btn primary" for="cam">Take photo of tag</label>
+    <button id="dl" class="btn" type="button" disabled>Download Excel</button>
   </div>
 </div>
 <div id="toast" class="toast" role="status" hidden></div>
@@ -284,7 +284,7 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
     rows.forEach(function(e){var w=num(e.weight);if(w!=null){t+=w;any=true}});
     $('count').textContent=n?(n+(n===1?' line':' lines')):'No lines yet';
     $('total').textContent=any?('Total '+t.toLocaleString('en-IN',{maximumFractionDigits:1})+' kg'):'';
-    $('dl').disabled=!n;$('share').disabled=!n;
+    $('dl').disabled=!n;
   }
   function remove(id){
     rows=rows.filter(function(e){return e.id!==id});
@@ -518,15 +518,6 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
     setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},4000);
     toast('Saving '+f.name+'. Look in your Downloads.');
   };
-  $('share').onclick=function(){
-    var f=xlsxFile();var file=new File([f.blob],f.name,{type:f.type});
-    navigator.share({files:[file],title:f.name}).catch(function(err){if(err&&err.name!=='AbortError')toast('Sharing did not work. Use Download Excel.')});
-  };
-  try{
-    var probe=new File([new Blob(['x'])],'a.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    if(navigator.canShare&&navigator.canShare({files:[probe]}))$('share').hidden=false;
-  }catch(e){}
-
   if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
     navigator.serviceWorker.register('sw.js').catch(function(){});
   }
