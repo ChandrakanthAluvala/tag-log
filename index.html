@@ -167,7 +167,7 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
 (function(){
   'use strict';
   var ROWS_KEY='bundle-tag-log-rows-v1', SET_KEY='bundle-tag-log-settings-v1';
-  var MODELS=['gemini-flash-latest','gemini-2.5-flash','gemini-2.0-flash'];
+  var MODELS=['gemini-flash-latest','gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.0-flash','gemini-flash-lite-latest'];
   var API='https://generativelanguage.googleapis.com/v1beta/';
   var FIELDS=[['heat','Heat number'],['grade','Grade'],['size','Size X length'],['weight','Net weight (kg)']];
   var MAP={heat_number:'heat',grade:'grade',size_length:'size',weight_kg:'weight'};
@@ -330,33 +330,44 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
     if(a<0||b<a)throw {code:'empty'};
     try{return JSON.parse(t.slice(a,b+1))}catch(e){throw {code:'empty'}}
   }
-  function gemini(blob,attempt){
+  var BUSY={429:1,500:1,502:1,503:1,504:1};
+  function gemini(blob){
     return b64(blob).then(function(data){
       var order=[settings.model].concat(MODELS.filter(function(m){return m!==settings.model}));
       var body=JSON.stringify({
         contents:[{parts:[{text:PROMPT},{inline_data:{mime_type:'image/jpeg',data:data}}]}],
         generationConfig:{responseMimeType:'application/json',temperature:0}
       });
-      function tryModel(i){
-        if(i>=order.length)throw {code:'http',status:404,message:'No Gemini model was found. Check the model name in Settings.'};
-        return fetch(API+'models/'+encodeURIComponent(order[i])+':generateContent',{
+      var waits=[0,5000,12000,25000];
+      function call(m){
+        return fetch(API+'models/'+encodeURIComponent(m)+':generateContent',{
           method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':settings.key},body:body
-        }).then(function(res){
-          if(res.status===404)return tryModel(i+1);
-          return res.json().catch(function(){return {}}).then(function(j){
-            if(!res.ok)throw {code:'http',status:res.status,message:(j.error&&j.error.message)||('HTTP '+res.status)};
-            if(order[i]!==settings.model){settings.model=order[i];saveSettings()}
-            var parts=(j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[];
+        }).then(function(res){return res.json().catch(function(){return {}}).then(function(j){return {res:res,j:j}})});
+      }
+      /* If one model is busy or out of free quota, try the next model. If all are busy, wait and go round again. */
+      function round(r){
+        var busy=null,missing=false;
+        function tryModel(i){
+          if(i>=order.length){
+            if(busy&&r+1<waits.length)return sleep(waits[r+1]).then(function(){return round(r+1)});
+            if(busy)throw busy;
+            throw {code:'http',status:404,message:'No Gemini model was found. Check the model name in Settings.'};
+          }
+          return call(order[i]).then(function(x){
+            var st=x.res.status;
+            if(st===404){missing=true;return tryModel(i+1)}
+            if(BUSY[st]){busy={code:'http',status:st,message:(x.j.error&&x.j.error.message)||('HTTP '+st)};return tryModel(i+1)}
+            if(!x.res.ok)throw {code:'http',status:st,message:(x.j.error&&x.j.error.message)||('HTTP '+st)};
+            if(missing&&order[i]!==settings.model){settings.model=order[i];saveSettings()}
+            var parts=(x.j.candidates&&x.j.candidates[0]&&x.j.candidates[0].content&&x.j.candidates[0].content.parts)||[];
             var text=parts.map(function(p){return p.text||''}).join('');
             if(!text)throw {code:'empty'};
             return parseJson(text);
           });
-        });
+        }
+        return tryModel(0);
       }
-      return tryModel(0);
-    }).catch(function(err){
-      if(err&&err.status===429&&!attempt){return sleep(20000).then(function(){return gemini(blob,1)})}
-      throw err;
+      return round(0);
     });
   }
   function errCopy(err){
@@ -369,6 +380,7 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
       if(err.status===400&&/api key/i.test(m))return 'Google rejected the API key. Check it in Settings.';
       if(err.status===401||err.status===403)return 'Google rejected the key or blocked the request. Check the key in Settings.';
       if(err.status===429)return 'Free limit reached. Wait a minute, then tap Retry.';
+      if(err.status===500||err.status===502||err.status===503||err.status===504)return 'Google is busy right now. Wait a minute, then tap Retry.';
       return 'Google said: '+m.slice(0,140);
     }
     if(err instanceof TypeError||!navigator.onLine)return 'No internet connection. Connect, then tap Retry.';
