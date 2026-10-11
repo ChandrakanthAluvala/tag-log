@@ -260,7 +260,7 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
     var m=el('div','meta');m.append(el('span','n','Example'),el('span','status','Sample values. Not added to your Excel file.'));
     h.append(m);
     var f=el('div','fields');
-    [['Heat number','A11702'],['Grade','Fe 550 D'],['Size X length','32 mm X 12 mtr'],['Net weight (kg)','2206']].forEach(function(p){
+    [['Heat number','A11702-19'],['Grade','Fe 550 D'],['Size X length','32 mm X 12 mtr'],['Net weight (kg)','2206']].forEach(function(p){
       var l=el('div','field');l.append(el('span','lab',p[0]));
       var i=document.createElement('input');i.type='text';i.value=p[1];i.readOnly=true;i.tabIndex=-1;i.setAttribute('aria-label',p[0]+' example');l.append(i);f.append(l)});
     a.append(h,f);return a;
@@ -317,13 +317,13 @@ input[type=text],input[type=password]{width:100%;min-width:0;min-height:46px;pad
 
   /* ---------- reading the tag with Google Gemini ---------- */
   var PROMPT='This photo shows the paper tag tied to a bundle of TMT steel rebar from an Indian steel mill. Read these four printed fields exactly as they appear on the tag.\n'
-   +'- heat_number: the value under "Heat Number" (letters and digits such as A11702). Ignore any other number printed beside it.\n'
+   +'- heat_number: the value under "Heat Number" (letters and digits such as A11702), then a hyphen, then the second number printed on the same line to its right (it may be circled in red, for example 19). Join them as one value, for example A11702-19. If there is no second number, give only the heat number.\n'
    +'- grade: the value under "Grade", for example Fe 550 D.\n'
    +'- size_length: the value under "Size X Length", written as "<size> mm X <length> mtr", for example "32 mm X 12 mtr".\n'
    +'- weight_kg: the number under "Bundle Net Weight (Approx)", digits only, in kilograms.\n'
    +'The printing of size and weight can be faint or blurred, so read the digits carefully. If a field is missing, use an empty string, or null for weight_kg. '
    +'If you had to guess any field because it is faint, cut off or unclear, list its key in "unsure".\n'
-   +'Reply with only one JSON object, for example: {"heat_number":"A11702","grade":"Fe 550 D","size_length":"32 mm X 12 mtr","weight_kg":2206,"unsure":[]}';
+   +'Reply with only one JSON object, for example: {"heat_number":"A11702-19","grade":"Fe 550 D","size_length":"32 mm X 12 mtr","weight_kg":2206,"unsure":[]}';
 
   function parseJson(t){
     var a=t.indexOf('{'),b=t.lastIndexOf('}');
