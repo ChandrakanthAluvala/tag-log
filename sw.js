@@ -1,5 +1,5 @@
 /* Caches the app files so it opens without internet. Reading photos still needs internet. */
-var V = 'tag-log-v4';
+var V = 'tag-log-v5';
 var SHELL = ['./', './index.html', './manifest.webmanifest', './xlsx-lite.js', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
